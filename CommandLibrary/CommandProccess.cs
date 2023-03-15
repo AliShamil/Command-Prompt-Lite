@@ -17,7 +17,9 @@ public static class CommandProccess
         builder.Append("\nkill <process name>".PadRight(40));
         builder.Append("End the given process");
         builder.Append("\nrun <process name>".PadRight(40));
-        builder.Append("Run the given process");
+        builder.Append("Run the given process"); 
+        builder.Append("\nexit".PadRight(40));
+        builder.Append("Close connection.");
         return builder.ToString();
     }
     static public List<string> GetProcList()

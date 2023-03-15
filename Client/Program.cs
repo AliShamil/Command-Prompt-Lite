@@ -7,18 +7,36 @@ using System.Net;
 
 var port = 12345;
 TcpClient client = null;
-NetworkStream stream = null;
+var count = 0;
+tryconnect:
 try
 {
     client = new TcpClient("127.0.0.1", port);
-    stream =client.GetStream();
+    Console.Clear();
+    Console.WriteLine(@"Connected successfuly!
+Press any key to continue...");
+    Console.ReadKey();
+    Console.Clear();
 }
 catch (Exception ex)
 {
-    Console.WriteLine("Hello Babe");
+    Console.WriteLine(ex.Message);
 }
-if (stream == null)
+
+if (client == null)
+{
+    if (count != 6)
+    {
+        ++count;
+        Console.Clear();
+        Console.WriteLine($"Trying to connect {count}/6");
+        goto tryconnect;
+    }
     return;
+}
+
+var stream = client.GetStream();
+
 var bw = new BinaryWriter(stream);
 var br = new BinaryReader(stream);
 
@@ -27,10 +45,10 @@ var input = string.Empty;
 while (true)
 {
     input = Console.ReadLine();
-
     if (string.IsNullOrWhiteSpace(input))
     {
-        Console.WriteLine("Please enter command./nPress any key to continue...");
+        Console.WriteLine(@"Please enter command.
+Press any key to continue...");
         Console.ReadKey();
         Console.Clear();
         continue;
@@ -45,6 +63,7 @@ while (true)
         "kill" => CommandText.Kill,
         "run" => CommandText.Run,
         "help" => CommandText.Help,
+        "exit" => CommandText.Exit,
         _ => CommandText.Unkown
     };
 
@@ -59,7 +78,8 @@ while (true)
             {
                 if (!string.IsNullOrWhiteSpace(param))
                 {
-                    Console.WriteLine("Parameter is not acceptable for 'proclist' command./nPress any key to continue...");
+                    Console.WriteLine(@"Parameter is not acceptable for 'proclist' command.
+Press any key to continue...");
                     Console.ReadKey();
                     Console.Clear();
                     continue;
@@ -76,7 +96,8 @@ while (true)
 
                 if (list is null)
                 {
-                    Console.WriteLine("Proclist cannot be loaded!/nPress any key to continue...");
+                    Console.WriteLine(@"Proclist cannot be loaded!
+Press any key to continue...");
                     Console.ReadKey();
                     Console.Clear();
                     continue;
@@ -96,13 +117,14 @@ while (true)
             {
                 if (!string.IsNullOrWhiteSpace(param))
                 {
-                    Console.WriteLine("Parameter is not acceptable for 'help' command./nPress any key to continue...");
+                    Console.WriteLine(@"Parameter is not acceptable for 'help' command.
+Press any key to continue...");
                     Console.ReadKey();
                     Console.Clear();
                     continue;
                 }
 
-                var command = JsonConvert.SerializeObject(new Command { Text = commandText, Param = param });
+                var command = JsonConvert.SerializeObject(new Command { Text = commandText ,Param = param});
 
                 bw.Write(command);
 
@@ -115,13 +137,14 @@ while (true)
                 Console.Clear();
                 break;
             }
-
+        
         case CommandText.Kill:
             {
 
                 if (string.IsNullOrWhiteSpace(param))
                 {
-                    Console.WriteLine("<process name> must be given for using 'kill' command./nPress any key to continue...");
+                    Console.WriteLine(@"<process name> must be given for using 'kill' command.
+Press any key to continue...");
                     Console.ReadKey();
                     Console.Clear();
                     continue;
@@ -135,13 +158,15 @@ while (true)
                 var result = br.ReadBoolean();
                 if (result is true)
                 {
-                    Console.WriteLine($"'{param}' process succesfully ended!/nPress any key to continue...");
+                    Console.WriteLine(@$"'{param}' process succesfully ended!
+Press any key to continue...");
                     Console.ReadKey();
                     Console.Clear();
                 }
                 else
                 {
-                    Console.WriteLine($"'{param}' process cannot be ended! \nPress any key to continue...");
+                    Console.WriteLine($@"'{param}' process cannot be ended!
+Press any key to continue...");
                     Console.ReadKey();
                     Console.Clear();
                 }
@@ -151,7 +176,8 @@ while (true)
             {
                 if (string.IsNullOrWhiteSpace(param))
                 {
-                    Console.WriteLine("<process name> must be given for using 'run' command./nPress any key to continue...");
+                    Console.WriteLine(@"<process name> must be given for using 'run' command.
+Press any key to continue...");
                     Console.ReadKey();
                     Console.Clear();
                     continue;
@@ -165,13 +191,15 @@ while (true)
                 var result = br.ReadBoolean();
                 if (result is true)
                 {
-                    Console.WriteLine($"'{param}' process succesfully started!\nPress any key to continue...");
+                    Console.WriteLine($@"'{param}' process succesfully started!
+Press any key to continue...");
                     Console.ReadKey();
                     Console.Clear();
                 }
                 else
                 {
-                    Console.WriteLine("Process cannot be started!\nPress any key to continue...");
+                    Console.WriteLine(@"Process cannot be started!
+Press any key to continue...");
                     Console.ReadKey();
                     Console.Clear();
                 }
@@ -179,9 +207,19 @@ while (true)
             }
         case CommandText.Unkown:
             {
-                Console.WriteLine("Please use 'help' command.\nPress any key to continue...");
+                Console.WriteLine(@"Please use 'help' command.
+Press any key to continue...");
                 Console.ReadKey();
                 Console.Clear();
+                break;
+            }
+       case CommandText.Exit:
+            {
+                Console.WriteLine("Closing...");
+                await Task.Delay(1000);
+                Console.Clear() ;
+                client.Close();
+                Environment.Exit(0);
                 break;
             }
 

@@ -12,5 +12,6 @@ public enum CommandText
     Help,
     Proclist,
     Kill,
-    Run
+    Run,
+    Exit
 }

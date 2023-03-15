@@ -16,7 +16,7 @@ listener.Start(10);
 
 while (true)
 {
-    var client = await listener.AcceptTcpClientAsync();
+    TcpClient client = await listener.AcceptTcpClientAsync();
 
     Console.WriteLine($"Client {client.Client.RemoteEndPoint} accepted");
 
