@@ -4,55 +4,65 @@ using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using CommandLibrary;
 using Newtonsoft.Json;
+using System.Diagnostics;
 
-//int port = 12345;
-//TcpListener listener = new TcpListener(IPAddress.Parse("127.0.0.1"), port);
-//listener.Start();
+var ip = IPAddress.Parse("127.0.0.1");
+var port = 12345;
+var listener = new TcpListener(ip, port);
 
-//TcpClient remoteClient = listener.AcceptTcpClient();
-//NetworkStream remoteStream = remoteClient.GetStream();
-//while (true)
-//{
-//    BinaryFormatter formatter = new BinaryFormatter();
-//    byte[] receivedBuffer = new byte[1024];
-//    int receivedBytes = remoteStream.Read(receivedBuffer, 0, receivedBuffer.Length);
+listener.Start(10);
 
 
-//    using (var ms = new MemoryStream(receivedBuffer))
-//    {
-//        Command receivedObject = (Command)formatter.Deserialize(ms);
-//        Console.WriteLine("Received command: Text={0}, Param={1}", receivedObject.Text, receivedObject.Param);
 
-//        if (receivedObject.Text == "1")
-//        {
-//            byte[] sendBuffer = Encoding.ASCII.GetBytes("Salam Aleykum");
-//            remoteStream.Write(sendBuffer, 0, sendBuffer.Length);
-//            remoteStream.Flush();
-//        }
-//    }
-//}
-
-int port = 12345;
-TcpListener listener = new TcpListener(IPAddress.Parse("127.0.0.1"), port);
-listener.Start();
-
-TcpClient remoteClient = listener.AcceptTcpClient();
-NetworkStream remoteStream = remoteClient.GetStream();
 while (true)
 {
-    byte[] receivedBuffer = new byte[1024];
-    int receivedBytes = remoteStream.Read(receivedBuffer, 0, receivedBuffer.Length);
+    var client = await listener.AcceptTcpClientAsync();
 
-    string serializedObject = Encoding.UTF8.GetString(receivedBuffer, 0, receivedBytes);
-    Command receivedObject = JsonConvert.DeserializeObject<Command>(serializedObject);
+    Console.WriteLine($"Client {client.Client.RemoteEndPoint} accepted");
 
-    Console.WriteLine("Received command: Text={0}, Param={1}", receivedObject.Text, receivedObject.Param);
-
-    if (receivedObject.Text == "1")
+    await Task.Run(() =>
     {
-        string sendText = "Salam Aleykum";
-        byte[] sendBuffer = Encoding.UTF8.GetBytes(sendText);
-        remoteStream.Write(sendBuffer, 0, sendBuffer.Length);
-        remoteStream.Flush();
-    }
+        var stream = client.GetStream();
+        var bw = new BinaryWriter(stream);
+        var br = new BinaryReader(stream);
+
+        while (true)
+        {
+            var myObject = br.ReadString();
+
+            var cmd = JsonConvert.DeserializeObject<Command>(myObject);
+
+            if (cmd is null)
+                return;
+
+            switch (cmd.Text)
+            {
+                case CommandText.Help:
+                    {                        
+                        bw.Write(CommandProccess.GetHelpText());
+                        stream.Flush();
+                        break;
+                    }
+                case CommandText.Proclist:
+                    {
+                        var procList = JsonConvert.SerializeObject(CommandProccess.GetProcList());
+                        bw.Write(procList);
+                        stream.Flush();
+                        break;
+                    }
+                case CommandText.Kill:
+                    {
+                        bw.Write(CommandProccess.TryKill(cmd.Param));
+                        break;
+                    }
+                case CommandText.Run:
+                    {
+                        bw.Write(CommandProccess.TryRun(cmd.Param));
+                        break;
+                    }
+                case CommandText.Unkown:
+                    break;
+            }
+        }
+    });
 }

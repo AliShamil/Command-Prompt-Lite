@@ -3,64 +3,188 @@ using System.Net.Sockets;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using Newtonsoft.Json;
-//string ipAddress = "127.0.0.1";
-//int port = 12345;
-//TcpClient client = new TcpClient(ipAddress, port);
-//NetworkStream stream = client.GetStream();
-//while (true)
-//{
-//    Console.Write("Enter:");
-//    var text = Console.ReadLine();
+using System.Net;
 
-//    Command myObject = new Command();
-//    myObject.Text = text;
-//    myObject.Param = text;
-//    BinaryFormatter formatter = new BinaryFormatter();
-//    byte[] buffer = new byte[1024];
-//    using (var ms = new MemoryStream())
-//    {
-//        formatter.Serialize(ms, myObject);
-//        buffer = ms.ToArray();
-//    }
-//    stream.Write(buffer, 0, buffer.Length);
-//    stream.Flush();
+var port = 12345;
+TcpClient client = null;
+NetworkStream stream = null;
+try
+{
+    client = new TcpClient("127.0.0.1", port);
+    stream =client.GetStream();
+}
+catch (Exception ex)
+{
+    Console.WriteLine("Hello Babe");
+}
+if (stream == null)
+    return;
+var bw = new BinaryWriter(stream);
+var br = new BinaryReader(stream);
 
-//    if (text == "1")
-//    {
-//        byte[] receiveBuffer = new byte[1024];
-//        int receivedBytes = stream.Read(receiveBuffer, 0, receiveBuffer.Length);
-//        string receivedText = Encoding.ASCII.GetString(receiveBuffer, 0, receivedBytes);
-//        Console.WriteLine("Received: " + receivedText);
-//    }
-//}
+var input = string.Empty;
 
-
-string ipAddress = "127.0.0.1";
-int port = 12345;
-TcpClient client = new TcpClient(ipAddress, port);
-NetworkStream stream = client.GetStream();
 while (true)
 {
-    Console.Write($"{Environment.CurrentDirectory}");
-    var text = Console.ReadLine();
-    
-    //var t = text.Split(' ');
-    
-    Command myObject = new Command();
-    myObject.Text = text.Trim();
-    myObject.Param = text.Trim();
+    input = Console.ReadLine();
 
-    string serializedObject = JsonConvert.SerializeObject(myObject);
-    byte[] buffer = Encoding.UTF8.GetBytes(serializedObject);
-
-    stream.Write(buffer, 0, buffer.Length);
-    stream.Flush();
-
-    if (text == "1")
+    if (string.IsNullOrWhiteSpace(input))
     {
-        byte[] receiveBuffer = new byte[1024];
-        int receivedBytes = stream.Read(receiveBuffer, 0, receiveBuffer.Length);
-        string receivedText = Encoding.ASCII.GetString(receiveBuffer, 0, receivedBytes);
-        Console.WriteLine("Received: " + receivedText);
+        Console.WriteLine("Please enter command./nPress any key to continue...");
+        Console.ReadKey();
+        Console.Clear();
+        continue;
     }
+
+    var filteredInput = CommandProccess.ToFilterInput(input);
+
+
+    CommandText commandText = filteredInput[0].ToLower() switch
+    {
+        "proclist" => CommandText.Proclist,
+        "kill" => CommandText.Kill,
+        "run" => CommandText.Run,
+        "help" => CommandText.Help,
+        _ => CommandText.Unkown
+    };
+
+    string? param = string.Empty;
+
+    if (filteredInput.Count == 2)
+        param = filteredInput[1];
+
+    switch (commandText)
+    {
+        case CommandText.Proclist:
+            {
+                if (!string.IsNullOrWhiteSpace(param))
+                {
+                    Console.WriteLine("Parameter is not acceptable for 'proclist' command./nPress any key to continue...");
+                    Console.ReadKey();
+                    Console.Clear();
+                    continue;
+                }
+                var command = JsonConvert.SerializeObject(new Command { Text = commandText, Param = param });
+
+                bw.Write(command);
+
+                await Task.Delay(50);
+
+                var result = br.ReadString();
+
+                var list = JsonConvert.DeserializeObject<List<string>>(result);
+
+                if (list is null)
+                {
+                    Console.WriteLine("Proclist cannot be loaded!/nPress any key to continue...");
+                    Console.ReadKey();
+                    Console.Clear();
+                    continue;
+                }
+
+                Console.WriteLine();
+
+                foreach (var processName in list)
+                    Console.WriteLine(processName);
+
+                Console.ReadKey();
+                Console.Clear();
+                break;
+            }
+
+        case CommandText.Help:
+            {
+                if (!string.IsNullOrWhiteSpace(param))
+                {
+                    Console.WriteLine("Parameter is not acceptable for 'help' command./nPress any key to continue...");
+                    Console.ReadKey();
+                    Console.Clear();
+                    continue;
+                }
+
+                var command = JsonConvert.SerializeObject(new Command { Text = commandText, Param = param });
+
+                bw.Write(command);
+
+                await Task.Delay(30);
+
+                var result = br.ReadString();
+                Console.WriteLine(result);
+                Console.WriteLine("\nPress any key to continue...");
+                Console.ReadKey();
+                Console.Clear();
+                break;
+            }
+
+        case CommandText.Kill:
+            {
+
+                if (string.IsNullOrWhiteSpace(param))
+                {
+                    Console.WriteLine("<process name> must be given for using 'kill' command./nPress any key to continue...");
+                    Console.ReadKey();
+                    Console.Clear();
+                    continue;
+                }
+                var command = JsonConvert.SerializeObject(new Command { Text = commandText, Param = param });
+
+                bw.Write(command);
+
+                await Task.Delay(30);
+
+                var result = br.ReadBoolean();
+                if (result is true)
+                {
+                    Console.WriteLine($"'{param}' process succesfully ended!/nPress any key to continue...");
+                    Console.ReadKey();
+                    Console.Clear();
+                }
+                else
+                {
+                    Console.WriteLine($"'{param}' process cannot be ended! \nPress any key to continue...");
+                    Console.ReadKey();
+                    Console.Clear();
+                }
+                break;
+            }
+        case CommandText.Run:
+            {
+                if (string.IsNullOrWhiteSpace(param))
+                {
+                    Console.WriteLine("<process name> must be given for using 'run' command./nPress any key to continue...");
+                    Console.ReadKey();
+                    Console.Clear();
+                    continue;
+                }
+                var command = JsonConvert.SerializeObject(new Command { Text = commandText, Param = param });
+
+                bw.Write(command);
+
+                await Task.Delay(30);
+
+                var result = br.ReadBoolean();
+                if (result is true)
+                {
+                    Console.WriteLine($"'{param}' process succesfully started!\nPress any key to continue...");
+                    Console.ReadKey();
+                    Console.Clear();
+                }
+                else
+                {
+                    Console.WriteLine("Process cannot be started!\nPress any key to continue...");
+                    Console.ReadKey();
+                    Console.Clear();
+                }
+                break;
+            }
+        case CommandText.Unkown:
+            {
+                Console.WriteLine("Please use 'help' command.\nPress any key to continue...");
+                Console.ReadKey();
+                Console.Clear();
+                break;
+            }
+
+    }
+
 }
